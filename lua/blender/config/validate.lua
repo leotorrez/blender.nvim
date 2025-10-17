@@ -214,7 +214,7 @@ M.number.natural = M.all { M.number._int, M.number._ge(1) }
 -- percentages are numbers between 0 and 1, inclusive
 M.number.percentage = M.number._between_r_inc(0, 1)
 
-M.list = wrapped(vim.tbl_islist)
+M.list = wrapped(vim.islist)
 
 M.list.of = function(of)
   return function(val)
