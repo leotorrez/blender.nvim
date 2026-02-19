@@ -93,8 +93,12 @@ function TaskManager:refresh_display()
   local lines = {}
   local highlights = {}
   
+  -- Get window width for separators
+  local width = self.win.width or 100
+  local separator = string.rep('━', width)
+  
   -- Header section
-  table.insert(lines, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  table.insert(lines, separator)
   table.insert(lines, '')
   
   -- Info section
@@ -141,7 +145,7 @@ function TaskManager:refresh_display()
   table.insert(lines, string.format('Debugger: %s', debugger_text))
   table.insert(lines, string.format('Watch:    %s', watch_status))
   table.insert(lines, '')
-  table.insert(lines, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  table.insert(lines, separator)
   table.insert(lines, '')
   
   -- Add highlights for info section labels
@@ -359,10 +363,10 @@ function TaskManager:show()
     relative = 'editor',
     width = width,
     height = content_height,
-    row = row + info_height + 1,  -- Position below info window (1 for border)
+    row = row + info_height + 1,  -- Position below info window (accounting for border)
     col = col,
     style = 'minimal',
-    border = 'rounded',
+    border = { '', '', '', '│', '└', '─', '┘', '│' },  -- Only left, bottom, and right borders
     title = self.active_tab == 'output' and ' Output ' or ' Debug Console ',
     title_pos = 'center',
   }
@@ -386,6 +390,7 @@ function TaskManager:show()
   self.win = {
     win = info_win,
     buf = info_buf,
+    width = width,  -- Store width for separator generation
   }
   self.main_buf = info_buf
   self.content_win = content_win
