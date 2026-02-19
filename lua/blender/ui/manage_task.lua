@@ -27,127 +27,12 @@ function TaskManager.new(props)
   self.task = props.task
   self.message = props.message
   self.active_tab = 'output'
-  self.buffers = {
-    info = vim.api.nvim_create_buf(false, true),
-    header = vim.api.nvim_create_buf(false, true),
-    footer = vim.api.nvim_create_buf(false, true),
-  }
   self.autocmds = {}
-  
-  -- Set buffer options
-  vim.api.nvim_buf_set_option(self.buffers.info, 'filetype', 'blender-task-info')
-  vim.api.nvim_buf_set_option(self.buffers.header, 'filetype', 'blender-task-header')
-  vim.api.nvim_buf_set_option(self.buffers.footer, 'filetype', 'blender-task-footer')
+  self.main_buf = nil  -- Will be created in show()
   
   return self
 end
 
----Render task info into buffer
-function TaskManager:render_info()
-  local task = self.task
-  local lines = {}
-  
-  -- Determine debugger status
-  local debugger_text
-  if task.debugger_attached then
-    debugger_text = 'Attached'
-  elseif task.client then
-    if task.profile:dap_enabled() then
-      debugger_text = 'Not attached'
-    elseif dap.is_available() then
-      debugger_text = 'Disabled'
-    else
-      debugger_text = 'Disabled (missing nvim-dap)'
-    end
-  else
-    debugger_text = 'N/a'
-  end
-  
-  -- Watch status
-  local watch_status = task.watch_status
-      and table.concat(
-        vim.tbl_map(function(p)
-          return vim.fn.fnamemodify(p, ':~:.')
-        end, task.watch_status.pattern),
-        ', '
-      )
-    or 'N/a'
-  
-  -- Build info lines
-  table.insert(lines, string.format('Id:       %s', tostring(task.id)))
-  table.insert(lines, string.format('Profile:  %s', task.profile.name))
-  table.insert(lines, string.format('Command:  %s', table.concat(task.cmd, ' ')))
-  table.insert(lines, string.format('Status:   %s%s', 
-    task.status,
-    task.exit_code and ' (code ' .. task.exit_code .. ')' or ''
-  ))
-  table.insert(lines, string.format('PID:      %s', 
-    tostring(task.status == 'running' and task:get_pid() or 'N/a')
-  ))
-  table.insert(lines, string.format('Debugger: %s', debugger_text))
-  table.insert(lines, string.format('Watch:    %s', watch_status))
-  
-  -- Set buffer lines
-  vim.api.nvim_buf_set_option(self.buffers.info, 'modifiable', true)
-  vim.api.nvim_buf_set_lines(self.buffers.info, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(self.buffers.info, 'modifiable', false)
-  
-  -- Add highlights
-  local ns = vim.api.nvim_create_namespace('blender_task_info')
-  vim.api.nvim_buf_clear_namespace(self.buffers.info, ns, 0, -1)
-  
-  for i, line in ipairs(lines) do
-    local colon_pos = line:find(':')
-    if colon_pos then
-      vim.api.nvim_buf_add_highlight(self.buffers.info, ns, hl.BlenderAccent, i - 1, 0, colon_pos)
-    end
-  end
-end
-
----Render header with message and title
-function TaskManager:render_header()
-  local lines = {}
-  
-  if self.message then
-    table.insert(lines, ' ' .. self.message)
-  end
-  
-  table.insert(lines, '󰂫 Blender Task Manager')
-  
-  vim.api.nvim_buf_set_option(self.buffers.header, 'modifiable', true)
-  vim.api.nvim_buf_set_lines(self.buffers.header, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(self.buffers.header, 'modifiable', false)
-end
-
----Render footer with keybind hints
-function TaskManager:render_footer()
-  local parts = {}
-  
-  local km = config.keymaps.task_manager
-  if km.stop_task then
-    table.insert(parts, '<' .. km.stop_task .. '> Stop Task')
-  end
-  if km.restart_task then
-    table.insert(parts, '<' .. km.restart_task .. '> Restart Task')
-  end
-  if km.output_tab then
-    table.insert(parts, '<' .. km.output_tab .. '> Output')
-  end
-  if km.debug_console_tab then
-    table.insert(parts, '<' .. km.debug_console_tab .. '> Debug')
-  end
-  
-  local line = table.concat(parts, '  ')
-  
-  vim.api.nvim_buf_set_option(self.buffers.footer, 'modifiable', true)
-  vim.api.nvim_buf_set_lines(self.buffers.footer, 0, -1, false, { line })
-  vim.api.nvim_buf_set_option(self.buffers.footer, 'modifiable', false)
-  
-  -- Highlight as comment
-  local ns = vim.api.nvim_create_namespace('blender_task_footer')
-  vim.api.nvim_buf_clear_namespace(self.buffers.footer, ns, 0, -1)
-  vim.api.nvim_buf_add_highlight(self.buffers.footer, ns, 'Comment', 0, 0, -1)
-end
 
 ---Get the buffer to display based on active tab
 function TaskManager:get_active_buffer()
@@ -176,40 +61,106 @@ end
 
 ---Refresh the entire display
 function TaskManager:refresh_display()
-  if not self.win then
+  if not self.win or not self.main_buf or not vim.api.nvim_buf_is_valid(self.main_buf) then
     return
   end
   
-  self:render_header()
-  self:render_info()
-  self:render_footer()
+  local lines = {}
+  local highlights = {}
   
-  -- The content buffer is managed separately in the layout
-  self:update_content_buffer()
-end
-
----Update the content buffer based on active tab
-function TaskManager:update_content_buffer()
-  if not self.win or not self.win.win or not vim.api.nvim_win_is_valid(self.win.win) then
-    return
-  end
+  -- Header section
+  table.insert(lines, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  table.insert(lines, '')
   
-  -- Find the content window in the layout
-  -- We'll set this up when creating the window
-  if self.content_win and vim.api.nvim_win_is_valid(self.content_win) then
-    local buf = self:get_active_buffer()
-    if buf and vim.api.nvim_buf_is_valid(buf) then
-      vim.api.nvim_win_set_buf(self.content_win, buf)
-      
-      -- Set buffer options for terminal/repl
-      vim.api.nvim_win_set_option(self.content_win, 'number', false)
-      vim.api.nvim_win_set_option(self.content_win, 'relativenumber', false)
-      vim.api.nvim_win_set_option(self.content_win, 'signcolumn', 'no')
-      
-      -- Auto-scroll to bottom (use win_set_cursor for terminal buffers)
-      local line_count = vim.api.nvim_buf_line_count(buf)
-      pcall(vim.api.nvim_win_set_cursor, self.content_win, { line_count, 0 })
+  -- Info section
+  local task = self.task
+  
+  -- Determine debugger status
+  local debugger_text
+  if task.debugger_attached then
+    debugger_text = 'Attached'
+  elseif task.client then
+    if task.profile:dap_enabled() then
+      debugger_text = 'Not attached'
+    elseif dap.is_available() then
+      debugger_text = 'Disabled'
+    else
+      debugger_text = 'Disabled (missing nvim-dap)'
     end
+  else
+    debugger_text = 'N/a'
+  end
+  
+  -- Watch status
+  local watch_status = task.watch_status
+      and table.concat(
+        vim.tbl_map(function(p)
+          return vim.fn.fnamemodify(p, ':~:.')
+        end, task.watch_status.pattern),
+        ', '
+      )
+    or 'N/a'
+  
+  -- Add info lines
+  local info_start = #lines + 1
+  table.insert(lines, string.format('Id:       %s', tostring(task.id)))
+  table.insert(lines, string.format('Profile:  %s', task.profile.name))
+  table.insert(lines, string.format('Command:  %s', table.concat(task.cmd, ' ')))
+  table.insert(lines, string.format('Status:   %s%s', 
+    task.status,
+    task.exit_code and ' (code ' .. task.exit_code .. ')' or ''
+  ))
+  table.insert(lines, string.format('PID:      %s', 
+    tostring(task.status == 'running' and task:get_pid() or 'N/a')
+  ))
+  table.insert(lines, string.format('Debugger: %s', debugger_text))
+  table.insert(lines, string.format('Watch:    %s', watch_status))
+  table.insert(lines, '')
+  table.insert(lines, '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  table.insert(lines, '')
+  
+  -- Add highlights for info section labels
+  for i = info_start, info_start + 6 do
+    local line = lines[i]
+    local colon_pos = line:find(':')
+    if colon_pos then
+      table.insert(highlights, { line = i - 1, col_start = 0, col_end = colon_pos, hl_group = hl.BlenderAccent })
+    end
+  end
+  
+  -- Tab section (footer)
+  local tab_line
+  if self.active_tab == 'output' then
+    tab_line = string.format('[%s Output %s]  [ Debug Console ]', hl.BlenderAccent, hl.Normal)
+  else
+    tab_line = '[ Output ]  [' .. hl.BlenderAccent .. ' Debug Console ' .. hl.Normal .. ']'
+  end
+  table.insert(lines, tab_line)
+  
+  -- Message if any
+  if self.message then
+    table.insert(lines, '')
+    table.insert(lines, self.message)
+  end
+  
+  -- Set buffer content
+  vim.api.nvim_buf_set_option(self.main_buf, 'modifiable', true)
+  vim.api.nvim_buf_set_lines(self.main_buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(self.main_buf, 'modifiable', false)
+  
+  -- Apply highlights
+  local ns = vim.api.nvim_create_namespace('blender_task_manager')
+  vim.api.nvim_buf_clear_namespace(self.main_buf, ns, 0, -1)
+  
+  for _, hl_info in ipairs(highlights) do
+    vim.api.nvim_buf_add_highlight(
+      self.main_buf,
+      ns,
+      hl_info.hl_group,
+      hl_info.line,
+      hl_info.col_start,
+      hl_info.col_end
+    )
   end
 end
 
@@ -317,7 +268,12 @@ function TaskManager:show()
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
   
-  -- Create the main floating window with the header buffer
+  -- Create a single buffer for the entire UI
+  local main_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(main_buf, 'filetype', 'blender-task-manager')
+  vim.api.nvim_buf_set_option(main_buf, 'modifiable', false)
+  
+  -- Create the main floating window
   local win_opts = {
     relative = 'editor',
     width = width,
@@ -330,60 +286,26 @@ function TaskManager:show()
     title_pos = 'center',
   }
   
-  local win = vim.api.nvim_open_win(self.buffers.header, true, win_opts)
+  local win = vim.api.nvim_open_win(main_buf, true, win_opts)
   
   if not win or not vim.api.nvim_win_is_valid(win) then
     vim.notify('[Blender.nvim] Failed to create task manager window', vim.log.levels.ERROR)
     return
   end
   
-  -- Store window info in a table that mimics Snacks.win structure
+  -- Store window info
   self.win = {
     win = win,
-    buf = self.buffers.header,
+    buf = main_buf,
   }
+  self.main_buf = main_buf
   
   -- Set window options
   vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:Normal,FloatBorder:FloatBorder')
-  
-  -- Create splits within the window for layout
-  -- Header (already the main buffer)
-  -- Info section
-  -- Content section (output/debug)
-  -- Footer
-  
-  vim.api.nvim_win_call(self.win.win, function()
-    -- Split for info
-    vim.cmd('split')
-    local info_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(info_win, self.buffers.info)
-    vim.api.nvim_win_set_height(info_win, 7)
-    vim.api.nvim_win_set_option(info_win, 'number', false)
-    vim.api.nvim_win_set_option(info_win, 'relativenumber', false)
-    vim.api.nvim_win_set_option(info_win, 'signcolumn', 'no')
-    vim.api.nvim_win_set_option(info_win, 'wrap', false)
-    
-    -- Go back to main window and split for content
-    vim.api.nvim_set_current_win(self.win.win)
-    vim.cmd('wincmd j')  -- Move down to info window
-    vim.cmd('split')     -- Split below info
-    self.content_win = vim.api.nvim_get_current_win()
-    
-    -- Set the active buffer (output or debug)
-    local buf = self:get_active_buffer()
-    if buf and vim.api.nvim_buf_is_valid(buf) then
-      vim.api.nvim_win_set_buf(self.content_win, buf)
-    end
-    
-    -- Split for footer
-    vim.cmd('split')
-    local footer_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(footer_win, self.buffers.footer)
-    vim.api.nvim_win_set_height(footer_win, 1)
-    vim.api.nvim_win_set_option(footer_win, 'number', false)
-    vim.api.nvim_win_set_option(footer_win, 'relativenumber', false)
-    vim.api.nvim_win_set_option(footer_win, 'signcolumn', 'no')
-  end)
+  vim.api.nvim_win_set_option(win, 'number', false)
+  vim.api.nvim_win_set_option(win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(win, 'signcolumn', 'no')
+  vim.api.nvim_win_set_option(win, 'wrap', false)
   
   -- Render initial content
   self:refresh_display()
@@ -410,19 +332,17 @@ function TaskManager:close()
   end
   self.autocmds = {}
   
-  -- Close window(s)
+  -- Close window
   if self.win and self.win.win and vim.api.nvim_win_is_valid(self.win.win) then
     pcall(vim.api.nvim_win_close, self.win.win, true)
   end
   self.win = nil
-  self.content_win = nil
   
-  -- Delete buffers
-  for name, buf in pairs(self.buffers) do
-    if buf and vim.api.nvim_buf_is_valid(buf) then
-      pcall(vim.api.nvim_buf_delete, buf, { force = true })
-    end
+  -- Delete main buffer
+  if self.main_buf and vim.api.nvim_buf_is_valid(self.main_buf) then
+    pcall(vim.api.nvim_buf_delete, self.main_buf, { force = true })
   end
+  self.main_buf = nil
   
   ui._on_close()
   
