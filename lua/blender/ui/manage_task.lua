@@ -129,13 +129,39 @@ function TaskManager:refresh_display()
   end
   
   -- Tab section (footer)
-  local tab_line
+  local tab_line_num = #lines
   if self.active_tab == 'output' then
-    tab_line = string.format('[%s Output %s]  [ Debug Console ]', hl.BlenderAccent, hl.Normal)
+    table.insert(lines, '[ Output ]  [ Debug Console ]')
+    -- Highlight the active Output tab
+    table.insert(highlights, { line = tab_line_num, col_start = 0, col_end = 10, hl_group = hl.BlenderAccent })
   else
-    tab_line = '[ Output ]  [' .. hl.BlenderAccent .. ' Debug Console ' .. hl.Normal .. ']'
+    table.insert(lines, '[ Output ]  [ Debug Console ]')
+    -- Highlight the active Debug Console tab
+    table.insert(highlights, { line = tab_line_num, col_start = 12, col_end = 29, hl_group = hl.BlenderAccent })
   end
-  table.insert(lines, tab_line)
+  
+  -- Add keybind hints
+  table.insert(lines, '')
+  local hints = {}
+  local km = config.keymaps.task_manager
+  if km.stop_task then
+    table.insert(hints, string.format('<%s> Stop', km.stop_task))
+  end
+  if km.restart_task then
+    table.insert(hints, string.format('<%s> Restart', km.restart_task))
+  end
+  if km.output_tab then
+    table.insert(hints, string.format('<%s> Output', km.output_tab))
+  end
+  if km.debug_console_tab then
+    table.insert(hints, string.format('<%s> Debug', km.debug_console_tab))
+  end
+  if #hints > 0 then
+    local hints_line_num = #lines
+    table.insert(lines, table.concat(hints, '  '))
+    -- Highlight hints as comment
+    table.insert(highlights, { line = hints_line_num, col_start = 0, col_end = -1, hl_group = 'Comment' })
+  end
   
   -- Message if any
   if self.message then
