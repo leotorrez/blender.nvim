@@ -141,7 +141,9 @@ end
 
 ---@param data string[]
 function Task:_handle_output(data)
-  pcall(vim.api.nvim_chan_send, self._term_id, table.concat(data, '\r\n'))
+  -- Join lines with newline only (no carriage return)
+  -- The terminal buffer will handle display properly
+  pcall(vim.api.nvim_chan_send, self._term_id, table.concat(data, '\n'))
   vim.defer_fn(function()
     utils.terminal_tail_hack(self:get_buf())
   end, 10)
@@ -156,8 +158,9 @@ function Task:get_buf()
     self._bufnr = vim.api.nvim_create_buf(false, true)
     local mode = vim.api.nvim_get_mode().mode
     local term_id
+    -- Create terminal with very wide width to prevent line wrapping
     utils.buf_run_in_sized_win(self._bufnr, {
-      width = vim.o.columns,
+      width = 9999,
       height = vim.o.lines,
     }, function()
       term_id = vim.api.nvim_open_term(self._bufnr, {
@@ -171,6 +174,15 @@ function Task:get_buf()
     end)
     self._term_id = term_id
     utils.hack_around_termopen_autocmd(mode)
+    
+    -- Disable wrapping whenever this buffer is displayed in a window
+    vim.api.nvim_create_autocmd('BufWinEnter', {
+      group = augroup,
+      buffer = self._bufnr,
+      callback = function()
+        vim.wo.wrap = false
+      end,
+    })
   end
   return self._bufnr
 end
@@ -181,11 +193,15 @@ function Task:start()
     return
   end
   self:get_buf()
+  
+  -- Create environment variables
+  local env = vim.tbl_extend('force', {
+    BLENDER_NVIM_TASK_ID = tostring(self.id),
+  }, self.env)
+  
   local res = vim.fn.jobstart(self.cmd, {
     cwd = self.cwd,
-    env = vim.tbl_extend('force', {
-      BLENDER_NVIM_TASK_ID = tostring(self.id),
-    }, self.env),
+    env = env,
     on_exit = function(_, code)
       vim.schedule(function()
         self.status = 'exited'
@@ -222,6 +238,13 @@ function Task:start()
   end
   self._job_id = res
   self.status = 'running'
+  
+  -- Resize the PTY to be very wide to prevent line wrapping
+  -- This must be done after the job starts
+  vim.defer_fn(function()
+    pcall(vim.fn.jobresize, self._job_id, 9999, 9999)
+  end, 10)
+  
   self:_dispatch { 'change', 'start' }
 end
 
