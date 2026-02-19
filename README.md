@@ -25,8 +25,9 @@ Blender.nvim requires a recent version of Neovim and Blender. The following vers
 
 #### Neovim Plugin Dependencies:
 
-- [nui.nvim](https://github.com/MunifTanjim/nui.nvim)
-- [nui-components.nvim](https://github.com/grapp-dev/nui-components.nvim)
+- [snacks.nvim](https://github.com/folke/snacks.nvim) (Required for profile selector, notifications, and output panel)
+  - **Note:** You must enable `picker` in your Snacks.nvim configuration for profile selection to work
+- [nui-components.nvim](https://github.com/grapp-dev/nui-components.nvim) (Required for task manager UI)
 - [nvim-dap](https://github.com/mfussenegger/nvim-dap) (Optional, for debugging with DAP)
 - [nvim-dap-repl-highlights](https://github.com/LiadOz/nvim-dap-repl-highlights) (Optional, for syntax highlighting in the DAP REPL)
 
@@ -52,11 +53,19 @@ use {
     require("blender").setup()
   end,
   dependencies = {
-    "MunifTanjim/nui.nvim",
-    "grapp-dev/nui-components.nvim",
+    "folke/snacks.nvim", -- Required for profile selector, notifications, and output panel
+    "grapp-dev/nui-components.nvim", -- Required for task manager UI
     "mfussenegger/nvim-dap", -- Optional, for debugging with DAP
     "LiadOz/nvim-dap-repl-highlights", -- Optional, for syntax highlighting in the DAP REPL
   },
+}
+
+-- Don't forget to enable Snacks.nvim picker:
+{
+  "folke/snacks.nvim",
+  opts = {
+    picker = { enabled = true },
+  }
 }
 ```
 
@@ -91,6 +100,20 @@ require("blender").setup {
   ui = { --                      UiConfig?             UI configuration
     output_panel = { --          { height: number }    output panel configuration
       height = 0.25, --          number                height of the output panel. if 0 < height < 1, the height is a percentage of the window height
+    },
+  },
+  keymaps = { --                  KeymapsConfig?        keymap configuration (set any keymap to false to disable)
+    profile_selector = { --       ProfileSelectorKeymapsConfig?  profile selector keymaps
+      prev = '<C-p>', --          string|false          previous profile
+      next = '<C-n>', --          string|false          next profile
+      prev_alt = '<S-Tab>', --    string|false          previous profile (alternative)
+      next_alt = '<Tab>', --      string|false          next profile (alternative)
+    },
+    task_manager = { --           TaskManagerKeymapsConfig?  task manager keymaps
+      stop_task = '<C-x>', --     string|false          stop the running task
+      restart_task = '<C-r>', --  string|false          restart the task
+      output_tab = '<M-1>', --    string|false          switch to output tab
+      debug_console_tab = '<M-2>', -- string|false      switch to debug console tab
     },
   },
 }
@@ -136,6 +159,41 @@ blender.setup({
       env = env,
     }
   end,
+})
+```
+
+### Custom Keymaps
+
+You can customize all UI keymaps in the configuration. Set any keymap to `false` to disable it.
+
+```lua
+blender.setup({
+  keymaps = {
+    profile_selector = {
+      prev = '<C-p>',      -- Navigate to previous profile
+      next = '<C-n>',      -- Navigate to next profile
+      prev_alt = '<S-Tab>', -- Alternative: navigate to previous profile
+      next_alt = '<Tab>',   -- Alternative: navigate to next profile
+    },
+    task_manager = {
+      stop_task = '<C-x>',         -- Stop the running task
+      restart_task = '<C-r>',      -- Restart the task
+      output_tab = '<M-1>',        -- Switch to output tab
+      debug_console_tab = '<M-2>', -- Switch to debug console tab
+    },
+  },
+})
+```
+
+To disable a specific keymap:
+
+```lua
+blender.setup({
+  keymaps = {
+    task_manager = {
+      restart_task = false, -- Disable the restart task keymap
+    },
+  },
 })
 ```
 

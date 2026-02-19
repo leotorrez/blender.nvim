@@ -1,5 +1,6 @@
 local n = require 'nui-components'
 
+local config = require 'blender.config'
 local dap = require 'blender.dap'
 local signal_utils = require 'blender.signal.utils'
 local hl = require('blender.highlights').groups
@@ -49,17 +50,22 @@ local function ManageTask(props)
     ui._on_close()
   end)
 
-  renderer:add_mappings {
-    {
+  local mappings = {}
+  
+  if config.keymaps.task_manager.stop_task then
+    table.insert(mappings, {
       mode = { 'n', 'v' },
-      key = '<C-x>',
+      key = config.keymaps.task_manager.stop_task,
       handler = function()
         props.task:stop()
       end,
-    },
-    {
+    })
+  end
+  
+  if config.keymaps.task_manager.restart_task then
+    table.insert(mappings, {
       mode = { 'n', 'v' },
-      key = '<C-r>',
+      key = config.keymaps.task_manager.restart_task,
       handler = function()
         notify('Restarting task', 'INFO')
         renderer:close()
@@ -84,8 +90,10 @@ local function ManageTask(props)
           start_task()
         end
       end,
-    },
-  }
+    })
+  end
+  
+  renderer:add_mappings(mappings)
 
   renderer:render(n.rows(
     n.paragraph {
@@ -151,8 +159,10 @@ local function ManageTask(props)
         { flex = 0 },
         n.gap { flex = 1 },
         n.button {
-          label = '  Output <M-1> ',
-          global_press_key = '<M-1>',
+          label = config.keymaps.task_manager.output_tab
+              and ('  Output <' .. config.keymaps.task_manager.output_tab .. '> ')
+            or '  Output ',
+          global_press_key = config.keymaps.task_manager.output_tab or nil,
           is_active = is_tab_active 'tab-output',
           is_focusable = false,
           on_press = function()
@@ -164,8 +174,10 @@ local function ManageTask(props)
         },
         n.gap(1),
         n.button {
-          label = '  Debug Console <M-2> ',
-          global_press_key = '<M-2>',
+          label = config.keymaps.task_manager.debug_console_tab
+              and ('  Debug Console <' .. config.keymaps.task_manager.debug_console_tab .. '> ')
+            or '  Debug Console ',
+          global_press_key = config.keymaps.task_manager.debug_console_tab or nil,
           is_active = is_tab_active 'tab-debug',
           is_focusable = false,
           on_press = function()
@@ -207,7 +219,11 @@ local function ManageTask(props)
       is_focusable = false,
       align = 'right',
       lines = {
-        n.line(n.text('<C-x> Stop Task  <C-r> Restart Task', 'Comment')),
+        n.line(n.text(
+          (config.keymaps.task_manager.stop_task and ('<' .. config.keymaps.task_manager.stop_task .. '> Stop Task  ') or '')
+            .. (config.keymaps.task_manager.restart_task and ('<' .. config.keymaps.task_manager.restart_task .. '> Restart Task') or ''),
+          'Comment'
+        )),
       },
     }
   ))

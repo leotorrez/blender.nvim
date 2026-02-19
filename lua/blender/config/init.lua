@@ -27,6 +27,12 @@ local M = {}
 
 ---@class UiConfigResult : UiConfig
 
+---@class KeymapsConfig
+---@field profile_selector { next: string|false, prev: string|false, next_alt: string|false, prev_alt: string|false }
+---@field task_manager { stop: string|false, restart: string|false, output_tab: string|false, debug_tab: string|false }
+
+---@class KeymapsConfigResult : KeymapsConfig
+
 ---@alias ProfileGenerator fun(): ProfileParams|ProfileParams[]
 
 ---@class Config
@@ -35,6 +41,7 @@ local M = {}
 ---@field notify NotifyConfig
 ---@field watch WatchConfig
 ---@field ui UiConfig
+---@field keymaps KeymapsConfig
 
 ---@class ConfigResult
 ---@field profiles ProfileParams[]
@@ -42,6 +49,7 @@ local M = {}
 ---@field notify NotifyConfigResult
 ---@field watch WatchConfigResult
 ---@field ui UiConfigResult
+---@field keymaps KeymapsConfigResult
 
 ---@class ConfigModule : ConfigResult
 ---@field setup fun(config: Config)
@@ -100,6 +108,20 @@ M.schema = Schema(function(s)
     ui = {
       output_panel = {
         height = s:entry(0.25, vx.number.positive),
+      },
+    },
+    keymaps = {
+      profile_selector = {
+        next = s:entry('<C-n>', vx.any { vx.string, false }),
+        prev = s:entry('<C-p>', vx.any { vx.string, false }),
+        next_alt = s:entry('<Tab>', vx.any { vx.string, false }),
+        prev_alt = s:entry('<S-Tab>', vx.any { vx.string, false }),
+      },
+      task_manager = {
+        stop_task = s:entry('<C-x>', vx.any { vx.string, false }),
+        restart_task = s:entry('<C-r>', vx.any { vx.string, false }),
+        output_tab = s:entry('<M-1>', vx.any { vx.string, false }),
+        debug_console_tab = s:entry('<M-2>', vx.any { vx.string, false }),
       },
     },
   }, {
