@@ -25,8 +25,9 @@ Blender.nvim requires a recent version of Neovim and Blender. The following vers
 
 #### Neovim Plugin Dependencies:
 
-- [snacks.nvim](https://github.com/folke/snacks.nvim) (Required for UI components)
-  - **Note:** You must enable `picker` in your Snacks.nvim configuration for profile selection to work
+- [snacks.nvim](https://github.com/folke/snacks.nvim) (Optional, recommended for enhanced UI components)
+  - **Note:** If using Snacks.nvim, you must enable `picker` in your configuration for profile selection to work
+  - **Fallback:** If not available, blender.nvim will use native Neovim APIs and `vim.ui.select` instead
 - [nvim-dap](https://github.com/mfussenegger/nvim-dap) (Optional, for debugging with DAP)
 - [nvim-dap-repl-highlights](https://github.com/LiadOz/nvim-dap-repl-highlights) (Optional, for syntax highlighting in the DAP REPL)
 
@@ -52,13 +53,13 @@ use {
     require("blender").setup()
   end,
   dependencies = {
-    "folke/snacks.nvim", -- Required for UI components
+    "folke/snacks.nvim", -- Optional, recommended for enhanced UI
     "mfussenegger/nvim-dap", -- Optional, for debugging with DAP
     "LiadOz/nvim-dap-repl-highlights", -- Optional, for syntax highlighting in the DAP REPL
   },
 }
 
--- Don't forget to enable Snacks.nvim picker:
+-- If using Snacks.nvim, enable the picker:
 {
   "folke/snacks.nvim",
   opts = {
@@ -317,7 +318,7 @@ Includes code from the following projects:
 
 ### Acknowledgements
 
-- [snacks.nvim](https://github.com/folke/snacks.nvim): Collection of QoL plugins for Neovim
+- [snacks.nvim](https://github.com/folke/snacks.nvim): Optional UI enhancements for notifications and windows
 - [willothy](https://github.com/willothy) for contributions and original Buffer component implementation
 
 ### License
