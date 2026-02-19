@@ -1,12 +1,14 @@
 return function()
   local execs = {
     ['Blender'] = 'blender',
+    ['Blender 3.6'] = 'blender-3.6',
     ['Blender 4.0'] = 'blender-4.0',
     ['Blender 4.1'] = 'blender-4.1',
     ['Blender 4.2'] = 'blender-4.2',
     ['Blender 4.3'] = 'blender-4.3',
     ['Blender 4.4'] = 'blender-4.4',
     ['Blender 4.5'] = 'blender-4.5',
+    ['Blender 5.0'] = 'blender-5.0',
   }
 
   local search_paths = {}
