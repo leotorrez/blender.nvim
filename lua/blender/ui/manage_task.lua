@@ -206,10 +206,9 @@ function TaskManager:update_content_buffer()
       vim.api.nvim_win_set_option(self.content_win, 'relativenumber', false)
       vim.api.nvim_win_set_option(self.content_win, 'signcolumn', 'no')
       
-      -- Auto-scroll to bottom
-      vim.api.nvim_buf_call(buf, function()
-        vim.cmd('normal! G')
-      end)
+      -- Auto-scroll to bottom (use win_set_cursor for terminal buffers)
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      pcall(vim.api.nvim_win_set_cursor, self.content_win, { line_count, 0 })
     end
   end
 end
