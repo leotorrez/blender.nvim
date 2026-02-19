@@ -25,9 +25,8 @@ Blender.nvim requires a recent version of Neovim and Blender. The following vers
 
 #### Neovim Plugin Dependencies:
 
-- [snacks.nvim](https://github.com/folke/snacks.nvim) (Required for profile selector, notifications, and output panel)
+- [snacks.nvim](https://github.com/folke/snacks.nvim) (Required for UI components)
   - **Note:** You must enable `picker` in your Snacks.nvim configuration for profile selection to work
-- [nui-components.nvim](https://github.com/grapp-dev/nui-components.nvim) (Required for task manager UI)
 - [nvim-dap](https://github.com/mfussenegger/nvim-dap) (Optional, for debugging with DAP)
 - [nvim-dap-repl-highlights](https://github.com/LiadOz/nvim-dap-repl-highlights) (Optional, for syntax highlighting in the DAP REPL)
 
@@ -53,8 +52,7 @@ use {
     require("blender").setup()
   end,
   dependencies = {
-    "folke/snacks.nvim", -- Required for profile selector, notifications, and output panel
-    "grapp-dev/nui-components.nvim", -- Required for task manager UI
+    "folke/snacks.nvim", -- Required for UI components
     "mfussenegger/nvim-dap", -- Optional, for debugging with DAP
     "LiadOz/nvim-dap-repl-highlights", -- Optional, for syntax highlighting in the DAP REPL
   },
@@ -319,9 +317,8 @@ Includes code from the following projects:
 
 ### Acknowledgements
 
-- [nui.nvim](https://github.com/MunifTanjim/nui.nvim): UI component library for Neovim
-- [nui-components.nvim](https://github.com/grapp-dev/nui-components.nvim): UI framework built on top of nui.nvim
-- [willothy](https://github.com/willothy) for the original Buffer component implementation
+- [snacks.nvim](https://github.com/folke/snacks.nvim): Collection of QoL plugins for Neovim
+- [willothy](https://github.com/willothy) for contributions and original Buffer component implementation
 
 ### License
 

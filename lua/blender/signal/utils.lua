@@ -10,8 +10,7 @@ M.signal_value = function(value)
 end
 
 ---Observes a SignalValue once and then unsubscribes.
----Note: You should use a fresh SignalValue, since any other Observers of the
----SignalValue will be unsubscribed as well.
+---Works with both nui-components signals and our EventWrapper compatibility layer
 ---@generic T
 ---@param signal SignalValue<T>
 ---@param on_next fun(val: T): nil

@@ -1,4 +1,4 @@
-local Signal = require 'nui-components.signal'
+local Signal = require 'blender.signal_compat'
 
 local utils = require 'blender.utils'
 local signal_utils = require 'blender.signal.utils'
@@ -76,12 +76,13 @@ function Task.create(params)
 
     _next_event_id = 1,
     _signal = Signal.create {
-      change = nil,
-      start = nil,
-      start_fail = nil,
-      client_attach = nil,
-      dap_attach = nil,
-      exit = nil,
+      'change',
+      'start',
+      'start_fail',
+      'client_attach',
+      'dap_attach',
+      'dap_repl_buf_set',
+      'exit',
     },
     _job_id = nil,
     _bufnr = nil,
