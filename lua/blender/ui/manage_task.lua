@@ -71,6 +71,9 @@ function TaskManager:update_content_window()
     -- Update the buffer
     vim.api.nvim_win_set_buf(self.content_win, buf)
     
+    -- Setup keymaps for the new buffer
+    self:setup_keymaps_for_buffer(buf)
+    
     -- Update the window title
     local title = self.active_tab == 'output' and ' Output ' or ' Debug Console '
     if self.content_win_config then
@@ -218,41 +221,68 @@ function TaskManager:refresh_display()
   end
 end
 
----Setup keymaps for the window
-function TaskManager:setup_keymaps()
-  if not self.win or not self.win.buf then
+---Setup keymaps for a specific buffer
+---@param buf number Buffer handle
+function TaskManager:setup_keymaps_for_buffer(buf)
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
     return
   end
   
-  local buf = self.win.buf
   local km = config.keymaps.task_manager
+  local buftype = vim.api.nvim_buf_get_option(buf, 'buftype')
+  local is_terminal = buftype == 'terminal'
+  
+  -- Set keymaps for both normal and terminal modes
+  local modes = is_terminal and { 'n', 't' } or { 'n' }
   
   -- Stop task
   if km.stop_task then
-    vim.keymap.set('n', km.stop_task, function()
-      self.task:stop()
-    end, { buffer = buf, desc = 'Stop Task' })
+    for _, mode in ipairs(modes) do
+      vim.keymap.set(mode, km.stop_task, function()
+        self.task:stop()
+      end, { buffer = buf, desc = 'Stop Task' })
+    end
   end
   
   -- Restart task
   if km.restart_task then
-    vim.keymap.set('n', km.restart_task, function()
-      self:restart_task()
-    end, { buffer = buf, desc = 'Restart Task' })
+    for _, mode in ipairs(modes) do
+      vim.keymap.set(mode, km.restart_task, function()
+        self:restart_task()
+      end, { buffer = buf, desc = 'Restart Task' })
+    end
   end
   
   -- Switch to output tab
   if km.output_tab then
-    vim.keymap.set('n', km.output_tab, function()
-      self:switch_tab('output')
-    end, { buffer = buf, desc = 'Output Tab' })
+    for _, mode in ipairs(modes) do
+      vim.keymap.set(mode, km.output_tab, function()
+        self:switch_tab('output')
+      end, { buffer = buf, desc = 'Output Tab' })
+    end
   end
   
   -- Switch to debug tab
   if km.debug_console_tab then
-    vim.keymap.set('n', km.debug_console_tab, function()
-      self:switch_tab('debug')
-    end, { buffer = buf, desc = 'Debug Console Tab' })
+    for _, mode in ipairs(modes) do
+      vim.keymap.set(mode, km.debug_console_tab, function()
+        self:switch_tab('debug')
+      end, { buffer = buf, desc = 'Debug Console Tab' })
+    end
+  end
+end
+
+---Setup keymaps for all windows
+function TaskManager:setup_keymaps()
+  -- Setup keymaps for info buffer
+  if self.win and self.win.buf then
+    self:setup_keymaps_for_buffer(self.win.buf)
+  end
+  
+  -- Setup keymaps for content buffer
+  local content_buf = self:get_active_buffer()
+  if content_buf then
+    self:setup_keymaps_for_buffer(content_buf)
   end
 end
 
