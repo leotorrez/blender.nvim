@@ -57,6 +57,31 @@ function TaskManager:switch_tab(tab)
   
   self.active_tab = tab
   self:refresh_display()
+  self:update_content_window()
+end
+
+---Update the content window to show the active tab's buffer
+function TaskManager:update_content_window()
+  if not self.content_win or not vim.api.nvim_win_is_valid(self.content_win) then
+    return
+  end
+  
+  local buf = self:get_active_buffer()
+  if buf and vim.api.nvim_buf_is_valid(buf) then
+    -- Update the buffer
+    vim.api.nvim_win_set_buf(self.content_win, buf)
+    
+    -- Update the window title
+    local title = self.active_tab == 'output' and ' Output ' or ' Debug Console '
+    if self.content_win_config then
+      self.content_win_config.title = title
+      vim.api.nvim_win_set_config(self.content_win, self.content_win_config)
+    end
+    
+    -- Scroll to bottom
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    pcall(vim.api.nvim_win_set_cursor, self.content_win, { line_count, 0 })
+  end
 end
 
 ---Refresh the entire display
@@ -274,7 +299,7 @@ function TaskManager:setup_autocmds()
   handler_id = self.task:on('dap_repl_buf_set', function()
     vim.schedule(function()
       if self.active_tab == 'debug' then
-        self:update_content_buffer()
+        self:update_content_window()
       end
     end)
   end)
@@ -286,24 +311,26 @@ end
 
 ---Show the task manager window
 function TaskManager:show()
-  -- Create main floating window using native Neovim API
+  -- Calculate window dimensions
   local width = math.min(vim.o.columns, 100)
-  local height = math.min(vim.o.lines, 30)
+  local total_height = math.min(vim.o.lines - 4, 30)
+  local info_height = 16  -- Height for info panel
+  local content_height = total_height - info_height
   
-  -- Calculate center position
-  local row = math.floor((vim.o.lines - height) / 2)
+  -- Calculate center position for the top window
+  local row = math.floor((vim.o.lines - total_height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
   
-  -- Create a single buffer for the entire UI
-  local main_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_option(main_buf, 'filetype', 'blender-task-manager')
-  vim.api.nvim_buf_set_option(main_buf, 'modifiable', false)
+  -- Create info buffer
+  local info_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(info_buf, 'filetype', 'blender-task-manager')
+  vim.api.nvim_buf_set_option(info_buf, 'modifiable', false)
   
-  -- Create the main floating window
-  local win_opts = {
+  -- Create the info floating window (top)
+  local info_win_opts = {
     relative = 'editor',
     width = width,
-    height = height,
+    height = info_height,
     row = row,
     col = col,
     style = 'minimal',
@@ -312,26 +339,61 @@ function TaskManager:show()
     title_pos = 'center',
   }
   
-  local win = vim.api.nvim_open_win(main_buf, true, win_opts)
+  local info_win = vim.api.nvim_open_win(info_buf, true, info_win_opts)
   
-  if not win or not vim.api.nvim_win_is_valid(win) then
+  if not info_win or not vim.api.nvim_win_is_valid(info_win) then
     vim.notify('[Blender.nvim] Failed to create task manager window', vim.log.levels.ERROR)
     return
   end
   
+  -- Set window options for info window
+  vim.api.nvim_win_set_option(info_win, 'winhighlight', 'Normal:Normal,FloatBorder:FloatBorder')
+  vim.api.nvim_win_set_option(info_win, 'number', false)
+  vim.api.nvim_win_set_option(info_win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(info_win, 'signcolumn', 'no')
+  vim.api.nvim_win_set_option(info_win, 'wrap', false)
+  
+  -- Create content floating window (bottom) - initially with the active buffer
+  local content_buf = self:get_active_buffer()
+  local content_win_opts = {
+    relative = 'editor',
+    width = width,
+    height = content_height,
+    row = row + info_height + 1,  -- Position below info window (1 for border)
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = self.active_tab == 'output' and ' Output ' or ' Debug Console ',
+    title_pos = 'center',
+  }
+  
+  local content_win = vim.api.nvim_open_win(content_buf, false, content_win_opts)
+  
+  if not content_win or not vim.api.nvim_win_is_valid(content_win) then
+    vim.notify('[Blender.nvim] Failed to create content window', vim.log.levels.ERROR)
+    -- Close info window and return
+    pcall(vim.api.nvim_win_close, info_win, true)
+    return
+  end
+  
+  -- Set window options for content window
+  vim.api.nvim_win_set_option(content_win, 'winhighlight', 'Normal:Normal,FloatBorder:FloatBorder')
+  vim.api.nvim_win_set_option(content_win, 'number', false)
+  vim.api.nvim_win_set_option(content_win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(content_win, 'signcolumn', 'no')
+  
   -- Store window info
   self.win = {
-    win = win,
-    buf = main_buf,
+    win = info_win,
+    buf = info_buf,
   }
-  self.main_buf = main_buf
+  self.main_buf = info_buf
+  self.content_win = content_win
+  self.content_win_config = content_win_opts  -- Store for updates
   
-  -- Set window options
-  vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:Normal,FloatBorder:FloatBorder')
-  vim.api.nvim_win_set_option(win, 'number', false)
-  vim.api.nvim_win_set_option(win, 'relativenumber', false)
-  vim.api.nvim_win_set_option(win, 'signcolumn', 'no')
-  vim.api.nvim_win_set_option(win, 'wrap', false)
+  -- Scroll content to bottom
+  local line_count = vim.api.nvim_buf_line_count(content_buf)
+  pcall(vim.api.nvim_win_set_cursor, content_win, { line_count, 0 })
   
   -- Render initial content
   self:refresh_display()
@@ -358,11 +420,17 @@ function TaskManager:close()
   end
   self.autocmds = {}
   
-  -- Close window
+  -- Close info window
   if self.win and self.win.win and vim.api.nvim_win_is_valid(self.win.win) then
     pcall(vim.api.nvim_win_close, self.win.win, true)
   end
   self.win = nil
+  
+  -- Close content window
+  if self.content_win and vim.api.nvim_win_is_valid(self.content_win) then
+    pcall(vim.api.nvim_win_close, self.content_win, true)
+  end
+  self.content_win = nil
   
   -- Delete main buffer
   if self.main_buf and vim.api.nvim_buf_is_valid(self.main_buf) then
