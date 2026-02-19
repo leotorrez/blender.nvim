@@ -98,7 +98,7 @@ function TaskManager:refresh_display()
   local separator = string.rep('━', width)
   
   -- Header section
-  table.insert(lines, separator)
+  -- No separator needed - the content window border will serve as the separator
   table.insert(lines, '')
   
   -- Info section
@@ -145,8 +145,7 @@ function TaskManager:refresh_display()
   table.insert(lines, string.format('Debugger: %s', debugger_text))
   table.insert(lines, string.format('Watch:    %s', watch_status))
   table.insert(lines, '')
-  table.insert(lines, separator)
-  table.insert(lines, '')
+  -- No separator needed - the content window border will serve as the separator
   
   -- Add highlights for info section labels
   for i = info_start, info_start + 6 do
@@ -338,7 +337,7 @@ function TaskManager:show()
     row = row,
     col = col,
     style = 'minimal',
-    border = 'rounded',
+    border = { '╭', '─', '╮', '│', '', '', '', '│' },  -- Top and sides only, no bottom border
     title = ' Blender Task Manager ',
     title_pos = 'center',
   }
@@ -363,10 +362,10 @@ function TaskManager:show()
     relative = 'editor',
     width = width,
     height = content_height,
-    row = row + info_height + 1,  -- Position below info window (accounting for border)
+    row = row + info_height,  -- Position directly below info window content
     col = col,
     style = 'minimal',
-    border = { '', '', '', '│', '└', '─', '┘', '│' },  -- Only left, bottom, and right borders
+    border = { '├', '─', '┤', '│', '╯', '─', '╰', '│' },  -- Connects to info window sides
     title = self.active_tab == 'output' and ' Output ' or ' Debug Console ',
     title_pos = 'center',
   }
