@@ -310,35 +310,42 @@ end
 
 ---Show the task manager window
 function TaskManager:show()
-  -- Check if snacks is available
-  local ok, snacks = pcall(require, 'snacks')
-  if not ok or not snacks.win then
-    vim.notify('[Blender.nvim] Snacks.nvim is required for task manager', vim.log.levels.ERROR)
-    return
-  end
-  
-  -- Create main window with layout
+  -- Create main floating window using native Neovim API
   local width = math.min(vim.o.columns, 100)
   local height = math.min(vim.o.lines, 30)
   
-  self.win = snacks.win {
-    buf = self.buffers.header,
+  -- Calculate center position
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+  
+  -- Create the main floating window with the header buffer
+  local win_opts = {
+    relative = 'editor',
     width = width,
     height = height,
-    relative = 'editor',
-    position = 'center',
+    row = row,
+    col = col,
+    style = 'minimal',
     border = 'rounded',
-    title = '',
+    title = ' Blender Task Manager ',
     title_pos = 'center',
-    wo = {
-      winhighlight = 'Normal:Normal,FloatBorder:FloatBorder',
-    },
   }
   
-  if not self.win or not self.win.win or not vim.api.nvim_win_is_valid(self.win.win) then
+  local win = vim.api.nvim_open_win(self.buffers.header, true, win_opts)
+  
+  if not win or not vim.api.nvim_win_is_valid(win) then
     vim.notify('[Blender.nvim] Failed to create task manager window', vim.log.levels.ERROR)
     return
   end
+  
+  -- Store window info in a table that mimics Snacks.win structure
+  self.win = {
+    win = win,
+    buf = self.buffers.header,
+  }
+  
+  -- Set window options
+  vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:Normal,FloatBorder:FloatBorder')
   
   -- Create splits within the window for layout
   -- Header (already the main buffer)
@@ -404,14 +411,12 @@ function TaskManager:close()
   end
   self.autocmds = {}
   
-  -- Close window
-  if self.win then
-    pcall(function()
-      self.win:close()
-    end)
-    self.win = nil
-    self.content_win = nil
+  -- Close window(s)
+  if self.win and self.win.win and vim.api.nvim_win_is_valid(self.win.win) then
+    pcall(vim.api.nvim_win_close, self.win.win, true)
   end
+  self.win = nil
+  self.content_win = nil
   
   -- Delete buffers
   for name, buf in pairs(self.buffers) do
