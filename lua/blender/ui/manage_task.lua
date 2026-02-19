@@ -187,6 +187,9 @@ function TaskManager:refresh_display()
   if km.debug_console_tab then
     table.insert(hints, string.format('<%s> Debug', km.debug_console_tab))
   end
+  if km.close then
+    table.insert(hints, string.format('<%s> Close', km.close))
+  end
   if #hints > 0 then
     local hints_line_num = #lines
     table.insert(lines, table.concat(hints, '  '))
@@ -268,6 +271,15 @@ function TaskManager:setup_keymaps_for_buffer(buf)
       vim.keymap.set(mode, km.debug_console_tab, function()
         self:switch_tab('debug')
       end, { buffer = buf, desc = 'Debug Console Tab' })
+    end
+  end
+  
+  -- Close window
+  if km.close then
+    for _, mode in ipairs(modes) do
+      vim.keymap.set(mode, km.close, function()
+        self:close()
+      end, { buffer = buf, desc = 'Close Task Manager' })
     end
   end
 end

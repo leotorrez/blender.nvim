@@ -29,7 +29,7 @@ local M = {}
 
 ---@class KeymapsConfig
 ---@field profile_selector { next: string|false, prev: string|false, next_alt: string|false, prev_alt: string|false }
----@field task_manager { stop: string|false, restart: string|false, output_tab: string|false, debug_tab: string|false }
+---@field task_manager { stop: string|false, restart: string|false, output_tab: string|false, debug_tab: string|false, close: string|false }
 
 ---@class KeymapsConfigResult : KeymapsConfig
 
@@ -122,6 +122,7 @@ M.schema = Schema(function(s)
         restart_task = s:entry('<C-r>', vx.any { vx.string, false }),
         output_tab = s:entry('<M-1>', vx.any { vx.string, false }),
         debug_console_tab = s:entry('<M-2>', vx.any { vx.string, false }),
+        close = s:entry('q', vx.any { vx.string, false }),
       },
     },
   }, {
