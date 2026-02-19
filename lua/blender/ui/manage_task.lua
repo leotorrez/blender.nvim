@@ -34,6 +34,11 @@ function TaskManager.new(props)
   }
   self.autocmds = {}
   
+  -- Set buffer options
+  vim.api.nvim_buf_set_option(self.buffers.info, 'filetype', 'blender-task-info')
+  vim.api.nvim_buf_set_option(self.buffers.header, 'filetype', 'blender-task-header')
+  vim.api.nvim_buf_set_option(self.buffers.footer, 'filetype', 'blender-task-footer')
+  
   return self
 end
 
@@ -316,7 +321,7 @@ function TaskManager:show()
   local width = math.min(vim.o.columns, 100)
   local height = math.min(vim.o.lines, 30)
   
-  self.win = snacks.win({
+  self.win = snacks.win {
     buf = self.buffers.header,
     width = width,
     height = height,
@@ -328,13 +333,7 @@ function TaskManager:show()
     wo = {
       winhighlight = 'Normal:Normal,FloatBorder:FloatBorder',
     },
-    bo = {
-      filetype = 'blender-task-manager',
-    },
-    on_buf = function(buf)
-      -- This is called when buffer is set
-    end,
-  })
+  }
   
   if not self.win or not self.win.win or not vim.api.nvim_win_is_valid(self.win.win) then
     vim.notify('[Blender.nvim] Failed to create task manager window', vim.log.levels.ERROR)
