@@ -136,7 +136,8 @@ M.terminal_tail_hack = function(bufnr)
   local current_win = vim.api.nvim_get_current_win()
   for _, winid in ipairs(winids) do
     local scroll_to_line
-    if winid ~= current_win and vim.w[winid].overseer_pause_tail_for_buf ~= bufnr then
+    -- Allow auto-scroll for non-current windows, or current window if user hasn't paused scrolling
+    if vim.w[winid].overseer_pause_tail_for_buf ~= bufnr then
       local lnum = vim.api.nvim_win_get_cursor(winid)[1]
       local cursor_at_top = lnum < editor_height
       local not_much_output = linecount < editor_height + overflow
